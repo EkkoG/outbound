@@ -1,6 +1,7 @@
 package vless
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/daeuniverse/outbound/netproxy"
@@ -41,6 +42,7 @@ func NewDialer(nextDialer netproxy.Dialer, header protocol.Header) (netproxy.Dia
 		if !metadata.IsClient {
 			return nil, fmt.Errorf("unsupported server mode xtls flow type: %v", flow)
 		}
+	case "":
 	default:
 		return nil, fmt.Errorf("unsupported xtls flow type: %v", flow)
 	}
@@ -48,26 +50,26 @@ func NewDialer(nextDialer netproxy.Dialer, header protocol.Header) (netproxy.Dia
 		proxyAddress: header.ProxyAddress,
 		nextDialer:   nextDialer,
 		metadata:     metadata,
-		flow:         flow,
+		flow:         flow.(string),
 		// xudp:         header.Flags&protocol.Flags_VMess_UsePacketAddr == 0,
 		// xudp: true,
 		key: id,
 	}, nil
 }
 
-func (d *Dialer) DialTcp(addr string) (c netproxy.Conn, err error) {
-	return d.Dial("tcp", addr)
+func (d *Dialer) DialTcp(ctx context.Context, addr string) (c netproxy.Conn, err error) {
+	return d.DialContext(ctx, "tcp", addr)
 }
 
-func (d *Dialer) DialUdp(addr string) (c netproxy.PacketConn, err error) {
-	pktConn, err := d.Dial("udp", addr)
+func (d *Dialer) DialUdp(ctx context.Context, addr string) (c netproxy.PacketConn, err error) {
+	pktConn, err := d.DialContext(ctx, "udp", addr)
 	if err != nil {
 		return nil, err
 	}
 	return pktConn.(netproxy.PacketConn), nil
 }
 
-func (d *Dialer) Dial(network string, addr string) (c netproxy.Conn, err error) {
+func (d *Dialer) DialContext(ctx context.Context, network string, addr string) (c netproxy.Conn, err error) {
 	magicNetwork, err := netproxy.ParseMagicNetwork(network)
 	if err != nil {
 		return nil, err
@@ -85,7 +87,7 @@ func (d *Dialer) Dial(network string, addr string) (c netproxy.Conn, err error) 
 			Mark:    magicNetwork.Mark,
 			Mptcp:   magicNetwork.Mptcp,
 		}.Encode()
-		conn, err := d.nextDialer.Dial(tcpNetwork, d.proxyAddress)
+		conn, err := d.nextDialer.DialContext(ctx, tcpNetwork, d.proxyAddress)
 		if err != nil {
 			return nil, err
 		}

@@ -1,6 +1,7 @@
 package hysteria2
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -23,13 +24,7 @@ func NewDialer(nextDialer netproxy.Dialer, header protocol.Header) (netproxy.Dia
 		IsClient: header.IsClient,
 	}
 
-	serverAddr, err := net.ResolveUDPAddr("udp", header.ProxyAddress)
-	if err != nil {
-		return nil, err
-	}
-
 	config := &client.Config{
-		ServerAddr: serverAddr,
 		TLSConfig: client.TLSConfig{
 			ServerName:            header.TlsConfig.ServerName,
 			InsecureSkipVerify:    header.TlsConfig.InsecureSkipVerify,
@@ -41,10 +36,19 @@ func NewDialer(nextDialer netproxy.Dialer, header protocol.Header) (netproxy.Dia
 	if header.Password != "" {
 		config.Auth = header.User + ":" + header.Password
 	}
+	if feature := header.Feature1; feature != nil {
+		config.BandwidthConfig = *feature.(*client.BandwidthConfig)
+	}
 
 	client, err := client.NewReconnectableClient(
 		func() (*client.Config, error) {
-			return config, nil
+			serverAddr, err := net.ResolveUDPAddr("udp", header.ProxyAddress)
+			if err != nil {
+				return nil, err
+			}
+			newConfig := *config
+			newConfig.ServerAddr = serverAddr
+			return &newConfig, nil
 		},
 		func(c client.Client, hi *client.HandshakeInfo, i int) {
 			// Do nothing
@@ -61,7 +65,7 @@ func NewDialer(nextDialer netproxy.Dialer, header protocol.Header) (netproxy.Dia
 	}, nil
 }
 
-func (d *Dialer) Dial(network, address string) (netproxy.Conn, error) {
+func (d *Dialer) DialContext(_ context.Context, network, address string) (netproxy.Conn, error) {
 	magicNetwork, err := netproxy.ParseMagicNetwork(network)
 	if err != nil {
 		return nil, err
