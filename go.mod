@@ -43,6 +43,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
+	github.com/sagernet/sing v0.2.9 // indirect
+	github.com/sagernet/sing-shadowtls v0.1.4 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	golang.org/x/mod v0.15.0 // indirect
